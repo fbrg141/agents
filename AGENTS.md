@@ -114,8 +114,9 @@ Use tools in order of cost — cheapest first, escalate only when needed:
    before reading whole files. Don't dump entire files into context when a
    summary or symbol list would do.
 2. **Search before reading:** `grep` / `symbol_search` to find the relevant
-   location, then read only that section. Prefer targeted reads over
-   `read_file` on a 2000-line file.
+   location. Use `read_symbol` for a single function or symbol body — not
+   `read` on the whole file. Prefer targeted reads over `read_file` on a
+   2000-line file.
 3. **Diagnostics before build:** Run LSP diagnostics (`lsp_diagnostics`,
    `lens_diagnostics`) before reaching for a full build — they're cheaper
    and catch most issues.
