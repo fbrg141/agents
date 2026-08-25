@@ -13,6 +13,16 @@ Follow every step. Do not skip to code.
 
 Flow: INVESTIGATE -> CLARIFY -> RECOMMEND -> *LOOP UNTIL AGREEMENT*[REFINE -> CLARIFY -> RECOMMEND] -> PLAN -> CODE
 
+## GATES -- where you MUST stop and wait
+
+- After RECOMMEND: present the recommendation, then STOP. Do not write
+  the plan yet. Wait for the user's reaction (that reaction is the REFINE
+  loop input).
+- After PLAN: present the plan, then STOP. Do not touch any file until
+  the user explicitly approves.
+
+RECOMMEND and PLAN are never presented in the same message.
+
 1. INVESTIGATE: Read the relevant code. Understand the problem in context.
    Don't guess from filenames -- check how the codebase actually works.
    Evaluate feasibility before saying anything.
