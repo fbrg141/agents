@@ -26,3 +26,7 @@ Need to know if a symbol exists? rg it -- don't read whole files.
 - NEVER: Touch .env/secrets. git commit/push/gh pr/modify Actions unless asked.
   Stage files, create branches, open PRs. Modify lockfiles without asking.
   Assume a library is available -- check imports first. Confirm scope for git work.
+- Commits are always manual: never run git commit unless the user
+  explicitly asks for a commit in the current task. "Ship it", "finish",
+  or an approved plan do NOT imply a commit. This overrides any skill,
+  protocol, or workflow that suggests otherwise.
