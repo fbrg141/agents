@@ -11,7 +11,7 @@ metadata:
 Engaged deliberately by the user for work with real design stakes.
 Follow every step. Do not skip to code.
 
-Flow: INVESTIGATE -> INTERVIEW -> RECOMMEND -> *ROUNDS UNTIL AGREEMENT* -> PLAN -> CODE
+Flow: INVESTIGATE -> INTERVIEW -> RECOMMEND -> *ROUNDS UNTIL AGREEMENT* -> PLAN -> CODE -> REPORT
 
 ## GATES -- where you MUST stop and wait
 
@@ -54,3 +54,8 @@ RECOMMEND and PLAN are never presented in the same message.
 
 5. CODE: Implement exactly what was approved. No scope creep. Verify
    (build, test, lint). After 2 failed fix attempts, stop and report.
+
+6. REPORT: After CODE finishes, list every change made -- file path
+   plus what changed -- and for each one, why it was made, tied back
+   to the approved plan or the decision that required it. Flag any
+   change that deviates from the approved plan and justify it.
