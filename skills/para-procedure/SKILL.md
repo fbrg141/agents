@@ -6,8 +6,8 @@ description: >
   review, implement with worker subagents (one per seam), then fan out
   fresh-context reviewers before reporting. Use for tasks with several
   independent parts (schema + endpoint + UI, multi-service changes) or heavy
-  recon needs, e.g. when the user asks for parallel/delegated work or says
-  they installed subagents and wants them used. Skip for single-seam tasks
+  recon needs, e.g. when the user asks for parallel or delegated work.
+  Skip for single-seam tasks
   such as a typical bugfix -- the parent implements directly instead.
 ---
 
@@ -61,8 +61,9 @@ Write the single recommendation (one approach, not a menu; risks and
 trade-offs flagged). Then submit it as ONE text to an `oracle` subagent (read
 only, async) with this context: user objective, settled decisions,
 scout-derived facts, the recommendation, and the task: challenge assumptions,
-find missed risks or cheaper shapes. Use the oracle's exact suggestions
-before adopting them.
+find missed risks or cheaper shapes. Evaluate the critique yourself; adopt
+what verifies against the code and the user's intent -- oracle review is
+input to your judgment, not a replacement for it.
 
 ## 4. PLAN
 

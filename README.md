@@ -20,6 +20,8 @@ agent behavior. The live config is symlinks into this repo.
   the subagents model-tiering overrides (scout/researcher on flash,
   worker/delegate/reviewer on glm-5.3 `thinking: high`, oracle on kimi-k3
   `thinking: xhigh`). No secrets inside; tool writes go through the symlink.
+  Requires an ollama-cloud account + access to the named models — on a new
+  machine, that's the precondition.
 
 Third-party skills (e.g. orca-cli, orchestration) live in `~/.agents/skills/`
 as real directories managed by their own installers — they are NOT versioned

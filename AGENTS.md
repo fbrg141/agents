@@ -29,5 +29,7 @@ description), then symlink it into `~/.pi/agent/skills/`.
 
 ## Not versioned here (yet)
 
-`~/.pi/agent/settings.json`, `models.json`, and the Orca-managed
+`~/.pi/agent/settings.json` is versioned here as `settings.json` (symlinked
+live). Not versioned: `~/.pi/agent/models.json` (machine-specific local
+provider) and the Orca-managed
 extensions under `~/.pi/agent/extensions/`.
