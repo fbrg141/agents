@@ -1,0 +1,42 @@
+{
+  "lastChangelogVersion": "0.99.2",
+  "theme": "dark",
+  "defaultProvider": "ollama-cloud",
+  "defaultModel": "glm-5.3-flash",
+  "packages": [
+    "npm:pi-ollama-cloud",
+    "npm:pi-footer",
+    "npm:pi-subagents"
+  ],
+  "enabledModels": [
+    "ollama-cloud/glm-5.3-flash",
+    "ollama-cloud/glm-5.3",
+    "deepseek-v4.1-flash",
+    "ollama-cloud/kimi-k3"
+  ],
+  "subagents": {
+    "agentOverrides": {
+      "oracle": {
+        "model": "ollama-cloud/kimi-k3",
+        "thinking": "xhigh"
+      },
+      "researcher": {
+        "model": "ollama-cloud/deepseek-v4.1-flash"
+      },
+      "reviewer": {
+        "model": "ollama-cloud/glm-5.3"
+      },
+      "delegate": {
+        "model": "ollama-cloud/glm-5.3",
+        "thinking": "high"
+      },
+      "scout": {
+        "model": "ollama-cloud/deepseek-v4.1-flash"
+      },
+      "worker": {
+        "model": "ollama-cloud/glm-5.3",
+        "thinking": "high"
+      }
+    }
+  }
+}
