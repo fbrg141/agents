@@ -11,13 +11,14 @@ metadata:
 Engaged deliberately by the user for work with real design stakes.
 Follow every step. Do not skip to code.
 
-Flow: INVESTIGATE -> INTERVIEW -> RECOMMEND -> *ROUNDS UNTIL AGREEMENT* -> PLAN -> CODE -> REPORT
+Flow: INVESTIGATE -> INTERVIEW (rounds on the decision tree) -> RECOMMEND -> *ROUNDS UNTIL AGREEMENT* -> PLAN -> CODE -> REPORT
 
 ## GATES -- where you MUST stop and wait
 
 - After RECOMMEND: present the recommendation, then STOP. Do not write
-  the plan yet. Wait for the user's reaction (that reaction feeds the
-  next round).
+  the plan yet. Wait for an explicit response -- agreement, pushback,
+  or redirection; silence is not agreement. The response feeds the
+  next round.
 - After PLAN: present the plan, then STOP. Do not touch any file until
   the user explicitly approves.
 
@@ -41,7 +42,8 @@ RECOMMEND and PLAN are never presented in the same message.
    update the tree. "Explain X" rounds: go deeper, use ASCII diagrams for
    architecture, data flow, control flow, or state transitions when they
    clarify. After 3 rounds of disagreement on one point, present both
-   options with your pick and let the user choose.
+   options with your pick and let the user choose. This escalation is
+   the one exception to step 3's "one recommendation, not a menu".
    The interview is done when the frontier is empty: every branch
    visited, nothing left silently assumed. Do not act on it until the
    user confirms shared understanding.

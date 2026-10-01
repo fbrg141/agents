@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Review changes since a fixed point (commit, branch, tag, or merge-base) along two axes -- Standards (does the code follow the repo's documented conventions and a fixed smell baseline?) and Spec (does the code do what was asked, nothing more?). Use when the user wants a branch, PR, or work-in-progress reviewed, or asks to "review since X". Reports findings, never rewrites code.
+description: Review changes since a fixed point (commit, branch, tag, or merge-base) or uncommitted working-tree/index changes, along two axes -- Standards (does the code follow the repo's documented conventions and a fixed smell baseline?) and Spec (does the code do what was asked, nothing more?). Use when the user wants a branch, PR, or work-in-progress reviewed, asks to "review since X", or wants their uncommitted changes reviewed. Reports findings, never rewrites code.
 ---
 
 # Code Review — two axes, reported separately
@@ -17,6 +17,8 @@ Report the axes separately and never merge or rerank findings across them: a cha
 ### 1. Pin the fixed point
 
 Whatever the user named (SHA, branch, tag, `main`, `HEAD~5`). If unspecified, ask. Capture `git diff <fixed-point>...HEAD` (three-dot = merge-base) and `git log <fixed-point>..HEAD --oneline`. Verify the ref resolves and the diff is non-empty before reviewing -- fail here, not mid-review.
+
+If the user asks to review uncommitted work, the head side is the working tree or index, not `HEAD` (diffing against `HEAD` alone yields nothing there): capture `git diff --cached` for staged changes, `git diff` for unstaged, or both for the full working tree, with the base at `HEAD`.
 
 ### 2. Find the spec
 

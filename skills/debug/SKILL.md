@@ -1,6 +1,6 @@
 ---
 name: debug
-description: Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow. Skip phases only when explicitly justified.
+description: Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow. Overkill for trivial one-line fixes. Skip phases only when explicitly justified.
 ---
 
 # Debug — a discipline for hard bugs
@@ -9,7 +9,7 @@ This skill has you show commands, outputs and captured artifacts. **Redact every
 
 ## Phase 1: Build a feedback loop
 
-**This is the skill.** If you have a tight pass/fail signal for the bug (one that goes red on THIS bug), you will find the cause; everything else just consumes it. If you don't, no amount of staring at code will save you. Spend disproportionate effort here. Be aggressive. Be creative. Refuse to give up.
+**This is the skill.** If you have a tight pass/fail signal for the bug (one that goes red on THIS bug), you will find the cause; everything else just consumes it. Red means the loop fails on this bug -- asserting the user's exact symptom -- and passes on known-good input. If you don't, no amount of staring at code will save you. Spend disproportionate effort here. Be aggressive. Be creative. Refuse to give up.
 
 Ways to construct one, roughly in order:
 
@@ -56,7 +56,7 @@ Generate 3-5 RANKED hypotheses before testing any. Each must be falsifiable:
 
 > "If X is the cause, then changing Y will make the bug disappear / changing Z will make it worse."
 
-No prediction = vibe; discard or sharpen. Show the ranked list to the user before testing -- their domain knowledge re-ranks instantly. Don't block if they're AFK.
+No prediction = vibe; discard or sharpen. Show the ranked list to the user before testing -- their domain knowledge re-ranks instantly. If they don't respond within a normal wait, proceed on your ranking; don't stall the loop.
 
 ## Phase 4: Instrument
 
