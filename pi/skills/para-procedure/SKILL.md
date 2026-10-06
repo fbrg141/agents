@@ -65,6 +65,12 @@ find missed risks or cheaper shapes. Evaluate the critique yourself; adopt
 what verifies against the code and the user's intent -- oracle review is
 input to your judgment, not a replacement for it.
 
+For high-stakes decisions, add a second, independent oracle: the built-in
+read-only `claude-code` profile (async, handoff-only) pinned to Opus, e.g.
+`subagent({ agent: "claude-code", model: "opus:high", async: true, task: <same one-text handoff> })`.
+It runs your local Claude CLI, so the handoff must contain no secrets. Skip
+it for routine work; the kimi-k3 oracle is the default.
+
 ## 4. PLAN
 
 Fold in whatever the oracle and the user's approval changed. Concrete steps:
@@ -85,8 +91,9 @@ failed fix attempts in a lane, stop it and reroute -- you own arbitration.
 
 ## 6. REVIEW FANOUT — fresh eyes, then fix in parent
 
-With 2-3 `reviewer` subagents (fresh context, read-only, in parallel):
-one per risky seam or one diff-level + one spec-level. Give each the scope,
+With 2-3 read-only subagents in parallel (fresh context): one `reviewer`
+per risky seam, plus one `axis-reviewer` (runs the `code-review` skill:
+Standards and Spec reported separately) over the whole diff. Give each the scope,
 the approved plan, and what to check. Add an `oracle` pass only when the
 reviewers disagree materially or the change is high-stakes. Synthesize their
 findings yourself; the parent (or a rerouted writer) applies validated
@@ -97,6 +104,13 @@ fixes. Never let a reviewer edit code.
 List every change -- file path, what changed, why, tied to the approved plan
 or a decision. Flag deviations and justify them. Include review findings
 accepted vs rejected, and per-lane validation results.
+
+## Lite lane — for 2 seams or fewer, or when the parent is a flash model
+
+Same gates, fewer lanes: SCOUT (2 scouts max) -> INTERVIEW -> RECOMMEND ->
+PLAN -> APPROVAL -> ONE `worker` -> ONE `axis-reviewer` -> REPORT. Skip the
+oracle unless the change is high-stakes. Prefer this over the full flow
+whenever the seams are few; flash models lose coherence across many lanes.
 
 ## Anti-ceremony rules
 
