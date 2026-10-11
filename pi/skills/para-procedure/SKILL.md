@@ -9,6 +9,7 @@ description: >
   recon needs, e.g. when the user asks for parallel or delegated work.
   Skip for single-seam tasks
   such as a typical bugfix -- the parent implements directly instead.
+disable-model-invocation: true
 ---
 
 # PARA-PROCEDURE — ceremony with parallel lanes
@@ -92,7 +93,7 @@ failed fix attempts in a lane, stop it and reroute -- you own arbitration.
 ## 6. REVIEW FANOUT — fresh eyes, then fix in parent
 
 With 2-3 read-only subagents in parallel (fresh context): one `reviewer`
-per risky seam, plus one `axis-reviewer` (runs the `code-review` skill:
+per risky seam, plus one `axis-reviewer` (runs the `review-axes` skill:
 Standards and Spec reported separately) over the whole diff. Give each the scope,
 the approved plan, and what to check. Add an `oracle` pass only when the
 reviewers disagree materially or the change is high-stakes. Synthesize their
