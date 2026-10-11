@@ -1,4 +1,5 @@
 # shellcheck shell=sh
+# shellcheck disable=SC2034,SC2154 # sourced: $root comes from the caller, which uses $tab
 # Shared by install.sh and doctor.sh. Source after setting $root (this repo).
 # targets() is the single list of symlinks this repo owns: install creates
 # them, doctor verifies them, and anything else pointing into the repo is stale.
