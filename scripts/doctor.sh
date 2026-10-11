@@ -1,61 +1,71 @@
 #!/bin/sh
-# Verify the live pi / Claude Code config matches this repo. Read-only.
+# Verify this machine's live pi / Claude Code config matches the repo, then run
+# the repo lint. Read-only.
 set -u
 root="$(cd "$(dirname "$0")/.." && pwd)"
+. "$root/scripts/lib.sh"
 rc=0
 bad() { echo "FAIL  $*" >&2; rc=1; }
 ok()  { echo "ok    $*"; }
 
-# expect_link <live path> <repo target>
-expect_link() {
-  if [ ! -L "$1" ]; then bad "$1 is not a symlink"; return; fi
-  t="$(readlink "$1")"
-  [ "$t" = "$2" ] || { bad "$1 -> $t (expected $2)"; return; }
-  [ -e "$1" ] || { bad "$1 is a dangling link"; return; }
-  ok "$1"
-}
-fm_name() { awk '/^---/{n++; next} n==1 && /^name:/{sub(/^name:[ \t]*/,""); print; exit}' "$1"; }
+if [ "$root" = "$HOME/code/agents" ]; then ok "repo at ~/code/agents"
+else bad "repo is at $root; CLAUDE.md, pi/settings.json and the guard hook expect ~/code/agents"; fi
 
-pa="$HOME/.pi/agent"; cl="$HOME/.claude"
-expect_link "$pa/APPEND_SYSTEM.md" "$root/pi/APPEND_SYSTEM.md"
-expect_link "$pa/settings.json" "$root/pi/settings.json"
-expect_link "$pa/AGENTS.md" "$root/shared/CORE.md"
-for d in "$root"/pi/skills/*/; do expect_link "$pa/skills/$(basename "$d")" "${d%/}"; done
-for f in "$root"/pi/extensions/*.ts; do [ -f "$f" ] && expect_link "$pa/extensions/$(basename "$f")" "$f"; done
-expect_link "$cl/CLAUDE.md" "$root/claude/CLAUDE.md"
-for d in "$root"/claude/skills/*/; do expect_link "$cl/skills/$(basename "$d")" "${d%/}"; done
-for f in "$root"/claude/agents/*.md; do [ -f "$f" ] && expect_link "$cl/agents/$(basename "$f")" "$f"; done
+while IFS="$tab" read -r src dst; do
+  [ -n "$src" ] || continue
+  if [ ! -L "$dst" ]; then bad "$dst is not a symlink (run install.sh)"; continue; fi
+  t="$(readlink "$dst")"
+  if [ "$t" != "$src" ]; then bad "$dst -> $t (expected $src)"; continue; fi
+  if [ -e "$dst" ]; then ok "$dst"; else bad "$dst is a dangling link"; fi
+done <<EOF
+$(targets all)
+EOF
 
-# pi agents must not shadow builtins
+while IFS="$tab" read -r kind l; do
+  case "$kind" in
+    stale) bad "$l is a stale link into this repo (run install.sh)" ;;
+    dangling) echo "WARN  $l -> $(readlink "$l") is dangling (not managed here)" >&2 ;;
+  esac
+done <<EOF
+$(stray_links all)
+EOF
+
+# pi agents must not shadow the installed pi-subagents builtins
 builtin="$pa/npm/node_modules/pi-subagents/agents"
 for f in "$root"/pi/agents/*.md; do
   [ -f "$f" ] || continue
-  n="$(fm_name "$f")"; expect_link "$pa/agents/$(basename "$f")" "$f"
+  n="$(fm_name "$f")"
   [ -f "$builtin/$n.md" ] && bad "pi agent '$n' shadows a pi-subagents builtin"
 done
-# claude agents must not reuse a built-in name
-for f in "$root"/claude/agents/*.md; do
-  [ -f "$f" ] || continue
-  n="$(fm_name "$f")"
-  case "$n" in Explore|Plan|general-purpose|claude|claude-code-guide|statusline-setup) bad "claude agent '$n' reuses a built-in name" ;; esac
-done
 
-# JSON validity
-for j in "$root/pi/settings.json" "$cl/settings.json"; do
-  if python3 -m json.tool "$j" >/dev/null 2>&1; then ok "valid JSON $j"; else bad "invalid JSON $j"; fi
-done
-
-# claude permission guards present
-if [ -f "$root/claude/settings.permissions.json" ]; then
-  python3 - "$root/claude/settings.permissions.json" "$cl/settings.json" <<'PY' || rc=1
-import json, sys
-want = json.load(open(sys.argv[1]))["permissions"]
-have = json.load(open(sys.argv[2])).get("permissions", {})
-miss = [(k, r) for k, rules in want.items() for r in rules if r not in have.get(k, [])]
-for k, r in miss: print(f"FAIL  claude permissions.{k} missing {r}", file=sys.stderr)
-sys.exit(1 if miss else 0)
+# pi loads the guard by path; Claude settings carry our permissions and hook
+python3 - "$root" "$cl/settings.json" <<'PY' || rc=1
+import json, os, sys
+root, live = sys.argv[1], sys.argv[2]
+rc = 0
+def bad(m):
+    global rc; print(f"FAIL  {m}", file=sys.stderr); rc = 1
+pi = json.load(open(f"{root}/pi/settings.json"))
+for p in pi.get("extensions", []) + pi.get("subagents", {}).get("defaultSubagentOnlyExtensions", []):
+    if os.path.isfile(os.path.expanduser(p)): print(f"ok    pi extension {p}")
+    else: bad(f"pi extension {p} does not exist")
+try: cfg = json.load(open(live))
+except (OSError, ValueError) as e: bad(f"{live}: {e}"); sys.exit(rc)
+print(f"ok    valid JSON {live}")
+want = json.load(open(f"{root}/claude/settings.merge.json"))
+have = cfg.get("permissions", {})
+for k, rules in want.get("permissions", {}).items():
+    for r in rules:
+        if r not in have.get(k, []): bad(f"claude permissions.{k} missing {r} (run scripts/merge-claude-settings.sh)")
+for event, entries in want.get("hooks", {}).items():
+    cmds = {h.get("command") for e in cfg.get("hooks", {}).get(event, []) for h in e.get("hooks", [])}
+    for e in entries:
+        for h in e["hooks"]:
+            c = h["command"].replace("@ROOT@", root)
+            if c in cmds: print(f"ok    claude hook {event}: {c}")
+            else: bad(f"claude hook {event} missing {c} (run scripts/merge-claude-settings.sh)")
+sys.exit(rc)
 PY
-fi
 
-sh "$root/scripts/check.sh" || rc=1
+sh "$root/scripts/lint.sh" || rc=1
 exit $rc

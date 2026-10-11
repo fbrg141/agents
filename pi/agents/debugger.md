@@ -6,6 +6,7 @@ tools: read, grep, find, ls, bash, edit, write, contact_supervisor
 thinking: high
 systemPromptMode: replace
 inheritProjectContext: true
+inheritGlobalContext: true
 inheritSkills: false
 skills: debug
 defaultContext: fresh

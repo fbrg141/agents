@@ -32,8 +32,9 @@ Agents (custom, from this repo's `claude/agents/`): `scout` (haiku, read-only
 recon), `oracle` (opus, read-only critique), `worker` (sonnet, one seam),
 `reviewer` (sonnet, read-only, review-axes), `researcher` (web facts).
 
-Agent rules: launch 2+ agents or none, all in ONE response so they run in
-parallel. Never exactly one. Every prompt states a concrete return format.
+Agent rules: every lane must buy parallelism, context isolation, or an
+independent review. Launch independent agents together in ONE response so
+they run in parallel. Every prompt states a concrete return format.
 Subagents start cold: pass everything they need; they cannot see this chat.
 
 ## 1. SCOUT

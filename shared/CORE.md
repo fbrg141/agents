@@ -23,6 +23,8 @@ If rules conflict, lower number wins:
 - Ask first (one targeted question) when intent is materially ambiguous, or
   before choices that change: behavior, API/UX, naming, persistence, auth,
   dependencies, config, compatibility, project structure, or deleting files.
+- Review, debugging, or analysis requests: don't force code changes once
+  findings are evidenced.
 
 ## Evidence
 - Read code before discussing it. Check imports, config, types, tests and
@@ -41,6 +43,19 @@ If rules conflict, lower number wins:
 - Add dependencies or modify lockfiles only with approval.
 - Propagate errors with existing patterns; don't swallow them.
 
+## Testing
+- Preserve existing tests; update them when behavior changes.
+- Scope validation proportionally: docs = readback; type/API = targeted
+  typecheck or test; runtime/UI = targeted test, lint, or build.
+- If verification fails after your change: one targeted fix when the cause is
+  clear, otherwise stop and report.
+
+## Safety & infrastructure
+- Check injection, path traversal, unvalidated input, auth bypass, secret leakage.
+- Infrastructure work: inspect environment, services, configs, logs first.
+  Validate config before reload/restart; prefer reload when safe.
+- Project-specific service names, paths, and deploy details belong in local instructions.
+
 ## Git
 - Commit/push/PR/branch/stage only when the user explicitly asks in the
   current task. "Ship it", "finish", or an approved plan do NOT imply a
@@ -52,3 +67,9 @@ If rules conflict, lower number wins:
 Before declaring done: the change solves the stated problem; the narrowest
 relevant validation ran (or the gap is stated); no unintended side effects;
 no secrets added. If relevant checks already failed before your change, say so.
+
+## Response format
+No intros or restated requirements. Answer direct questions directly
+(`npm test`, not "The command to run tests is npm test").
+Review/debug/analysis: findings with references, conclusion, approach; mention
+caveats and unverified risks.
