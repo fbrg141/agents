@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "1.0.4",
+  "lastChangelogVersion": "1.1.0",
   "theme": "dark",
   "defaultProvider": "ollama-cloud",
   "defaultModel": "glm-5.3-flash",
@@ -8,15 +8,22 @@
     "npm:pi-footer",
     "npm:pi-subagents"
   ],
+  "extensions": [
+    "~/code/agents/pi/extensions/guard.ts"
+  ],
   "enabledModels": [
     "ollama-cloud/glm-5.3-flash",
     "ollama-cloud/glm-5.3",
     "ollama-cloud/deepseek-v4.1-flash",
     "ollama-cloud/kimi-k3",
     "anthropic/claude-opus-5-5",
-    "anthropic/claude-sonnet-5-5"
+    "anthropic/claude-sonnet-5-5",
+    "ollama-cloud/mistral-large-3:675b"
   ],
   "subagents": {
+    "defaultSubagentOnlyExtensions": [
+      "~/code/agents/pi/extensions/guard.ts"
+    ],
     "agentOverrides": {
       "oracle": {
         "model": "ollama-cloud/kimi-k3",
@@ -30,14 +37,16 @@
       },
       "delegate": {
         "model": "ollama-cloud/glm-5.3",
-        "thinking": "high"
+        "thinking": "high",
+        "inheritGlobalContext": true
       },
       "scout": {
         "model": "ollama-cloud/deepseek-v4.1-flash"
       },
       "worker": {
         "model": "ollama-cloud/glm-5.3",
-        "thinking": "high"
+        "thinking": "high",
+        "inheritGlobalContext": true
       },
       "axis-reviewer": {
         "model": "ollama-cloud/glm-5.3",
@@ -60,10 +69,18 @@
       "children": {
         "enabled": true,
         "overrides": {
-          "reviewer": { "enabled": false },
-          "axis-reviewer": { "enabled": false },
-          "scout": { "enabled": false },
-          "researcher": { "enabled": false }
+          "reviewer": {
+            "enabled": false
+          },
+          "axis-reviewer": {
+            "enabled": false
+          },
+          "scout": {
+            "enabled": false
+          },
+          "researcher": {
+            "enabled": false
+          }
         }
       }
     }
