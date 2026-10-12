@@ -1,0 +1,356 @@
+#!/usr/bin/env node
+// pi-ask: ask one or more pi models a question, read-only tools only.
+'use strict';
+
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawn, spawnSync } = require('node:child_process');
+const util = require('node:util');
+
+const REPO = path.resolve(__dirname, '..');
+const BUILTIN_CONFIG = path.join(__dirname, 'pi-ask.models.json');
+const USER_CONFIG = path.join(
+  process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'),
+  'pi-ask',
+  'models.json',
+);
+const THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+const READ_TOOLS = ['read', 'grep', 'find', 'ls'];
+const WEB_TOOLS = ['ollama_web_search', 'ollama_web_fetch'];
+const DEFAULT_TIMEOUT = 600;
+const STDERR_TAIL = 2000;
+
+const USAGE = `Usage: pi-ask [options] [--prompt-file FILE]... [PROMPT...]
+
+Ask one or more pi models in parallel. Models get read-only tools
+(read, grep, find, ls), plus web search/fetch with --web.
+
+Options:
+  --models a,b,c      aliases or full model ids (default: config "default")
+  --web               add ollama web search and fetch tools
+  --role NAME         preset: oracle, review, research (models, template, thinking, web)
+  --thinking LEVEL    off|minimal|low|medium|high|xhigh|max (ignored for models without thinking)
+  --timeout SECONDS   per-model timeout (default ${DEFAULT_TIMEOUT})
+  --out DIR           also write <DIR>/<PREFIX>.<alias>.md per model (created if missing)
+  --name PREFIX       file prefix for --out (default: role name or "ask")
+  --prompt-file FILE  add a file to the prompt as a labelled section (repeatable)
+  --dry-run           print the resolved pi argv per model as JSON lines; skips
+                      availability checks (pi is not called), so only aliases are accepted
+  --help              show this help
+
+Explicit flags override role presets.
+Config: scripts/pi-ask.models.json, overridden by
+  \${XDG_CONFIG_HOME:-$HOME/.config}/pi-ask/models.json
+
+Exit codes:
+  0  at least one model answered
+  1  all models failed or timed out
+  2  usage error (bad option, unknown model, missing file, invalid config, pi not installed)
+`;
+
+class UsageError extends Error {}
+
+function fail(msg) {
+  throw new UsageError(msg);
+}
+
+function readText(file, label) {
+  try {
+    return fs.readFileSync(file, 'utf8');
+  } catch (err) {
+    fail(`cannot read ${label} ${file}: ${err.code === 'ENOENT' ? 'no such file' : err.message}`);
+  }
+}
+
+function readJson(file) {
+  const text = readText(file, 'config');
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    fail(`invalid JSON in ${file}: ${err.message}`);
+  }
+}
+
+function mergeEntries(base = {}, over = {}, file) {
+  if (typeof over !== 'object' || over === null || Array.isArray(over)) {
+    fail(`invalid config in ${file}: "aliases" and "roles" must be objects`);
+  }
+  const out = { ...base };
+  for (const [name, entry] of Object.entries(over)) {
+    out[name] = { ...(base[name] || {}), ...entry };
+  }
+  return out;
+}
+
+function loadConfig() {
+  const config = readJson(BUILTIN_CONFIG);
+  if (fs.existsSync(USER_CONFIG)) {
+    const user = readJson(USER_CONFIG);
+    if (typeof user !== 'object' || user === null || Array.isArray(user)) {
+      fail(`invalid config in ${USER_CONFIG}: top level must be an object`);
+    }
+    for (const [key, value] of Object.entries(user)) {
+      if (key === 'aliases' || key === 'roles') {
+        config[key] = mergeEntries(config[key], value, USER_CONFIG);
+      } else {
+        config[key] = value;
+      }
+    }
+  }
+  config.aliases = config.aliases || {};
+  config.roles = config.roles || {};
+  return config;
+}
+
+function parseArgs(argv) {
+  let parsed;
+  try {
+    parsed = util.parseArgs({
+      args: argv,
+      allowPositionals: true,
+      strict: true,
+      options: {
+        help: { type: 'boolean', short: 'h' },
+        web: { type: 'boolean' },
+        'dry-run': { type: 'boolean' },
+        models: { type: 'string' },
+        role: { type: 'string' },
+        thinking: { type: 'string' },
+        timeout: { type: 'string' },
+        out: { type: 'string' },
+        name: { type: 'string' },
+        'prompt-file': { type: 'string', multiple: true },
+      },
+    });
+  } catch (err) {
+    fail(err.message);
+  }
+  const v = parsed.values;
+  const opts = {
+    help: v.help, web: v.web, dryRun: v['dry-run'], role: v.role, out: v.out,
+    name: v.name, thinking: v.thinking, promptFiles: v['prompt-file'] || [], words: parsed.positionals,
+  };
+  if (v.models !== undefined) {
+    opts.models = v.models.split(',').map((s) => s.trim()).filter(Boolean);
+    if (opts.models.length === 0) fail('--models needs at least one name');
+  }
+  if (opts.thinking !== undefined && !THINKING_LEVELS.includes(opts.thinking)) {
+    fail(`unknown thinking level "${opts.thinking}" (use ${THINKING_LEVELS.join(', ')})`);
+  }
+  if (v.timeout !== undefined) {
+    opts.timeout = Number(v.timeout);
+    if (!Number.isFinite(opts.timeout) || opts.timeout <= 0) fail(`invalid --timeout "${v.timeout}"`);
+  }
+  if (opts.name !== undefined && !/^[\w.-]+$/.test(opts.name)) fail(`invalid --name "${opts.name}"`);
+  return opts;
+}
+
+function buildPrompt(opts, role) {
+  const parts = [];
+  if (role && role.template) {
+    parts.push(readText(path.resolve(REPO, role.template), 'role template').trim());
+  }
+  for (const file of opts.promptFiles) {
+    const text = readText(file, '--prompt-file');
+    parts.push(`<file path="${file}">\n${text.replace(/\n$/, '')}\n</file>`);
+  }
+  if (opts.words.length) parts.push(opts.words.join(' '));
+  if (parts.length === 0) fail('no prompt given (pass PROMPT text or --prompt-file)');
+  return parts.join('\n\n') + '\n';
+}
+
+function onPath(cmd) {
+  for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+    if (!dir) continue;
+    try {
+      fs.accessSync(path.join(dir, cmd), fs.constants.X_OK);
+      return true;
+    } catch {}
+  }
+  return false;
+}
+
+// Returns Map<modelId, supportsThinking> for the given provider, from one `pi --list-models` call.
+function listModels(provider) {
+  const res = spawnSync('pi', ['--list-models'], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf8',
+    timeout: 60_000,
+  });
+  if (res.status !== 0) {
+    fail(`pi --list-models failed: ${(res.stderr || res.error || '').toString().trim()}`);
+  }
+  // Columns are located by the header row ("provider model ... thinking ...").
+  const lines = res.stdout.split('\n').map((l) => l.trim().split(/\s+/));
+  const header = lines.find((cols) => cols[0] === 'provider' && cols.includes('model'));
+  if (!header) fail('could not parse `pi --list-models` output (no header row)');
+  const [p, m, t] = ['provider', 'model', 'thinking'].map((name) => header.indexOf(name));
+  const models = new Map();
+  for (const cols of lines) {
+    if (cols[p] === provider && cols[m]) models.set(cols[m], t >= 0 && cols[t] === 'yes');
+  }
+  return models;
+}
+
+// Thinking precedence: --thinking, then the role's per-alias level, then the
+// alias default. Models without thinking support (null) never get one; full
+// model ids have no default, so they get one only from --thinking or a role.
+function resolveModels(names, config, opts, role) {
+  const aliasList = () => Object.entries(config.aliases)
+    .map(([a, e]) => `  ${a} = ${e.model}`).join('\n');
+  let available = null;
+  return names.map((name) => {
+    let id;
+    let base;
+    const entry = config.aliases[name];
+    if (entry) {
+      if (!entry.model) fail(`alias "${name}" has no "model"`);
+      id = entry.model;
+      base = entry.thinking ?? null;
+    } else {
+      if (opts.dryRun) {
+        fail(`unknown model "${name}" (--dry-run skips availability checks, so only aliases are accepted)\nAliases:\n${aliasList()}`);
+      }
+      available ??= listModels(config.provider);
+      if (!available.has(name)) {
+        fail(`unknown model "${name}" for provider ${config.provider}\nAliases:\n${aliasList()}`);
+      }
+      id = name;
+      base = available.get(name) ? undefined : null;
+    }
+    const thinking = base === null ? null : (opts.thinking || role?.thinking?.[name] || base || null);
+    return { alias: name, id, thinking };
+  });
+}
+
+// The prompt always goes to pi as an @file: one code path, no argv size limit.
+function piArgs(model, provider, tools, promptFile) {
+  const args = ['-p', '--no-session', '--no-context-files', '--no-skills',
+    '--tools', tools.join(','), '--model', `${provider}/${model.id}`];
+  if (model.thinking) args.push('--thinking', model.thinking);
+  args.push('--', `@${promptFile}`);
+  return args;
+}
+
+function stderrTail(text) {
+  const t = text.trim();
+  if (!t) return '';
+  return `\nstderr tail:\n${t.length > STDERR_TAIL ? '…' + t.slice(-STDERR_TAIL) : t}\n`;
+}
+
+function runModel(args, timeoutSec) {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const child = spawn('pi', args, { stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    child.stdout.on('data', (d) => { stdout += d; });
+    child.stderr.on('data', (d) => { stderr += d; });
+    const kill = (signal) => {
+      try { process.kill(-child.pid, signal); } catch { try { child.kill(signal); } catch {} }
+    };
+    const timer = setTimeout(() => {
+      timedOut = true;
+      kill('SIGTERM');
+      setTimeout(() => kill('SIGKILL'), 1500).unref();
+    }, timeoutSec * 1000);
+    const done = (code, error) => {
+      clearTimeout(timer);
+      resolve({ code, stdout, stderr, timedOut, error, seconds: (Date.now() - started) / 1000 });
+    };
+    child.on('error', (err) => done(null, err));
+    child.on('close', (code) => done(code));
+  });
+}
+
+function section(model, result, timeoutSec) {
+  const head = `## ${model.alias} (${model.id})`;
+  const answer = result.stdout.trim();
+  let status = null;
+  if (result.timedOut) status = `TIMED OUT after ${timeoutSec} s`;
+  else if (result.error) status = `FAILED (${result.error.message})`;
+  else if (result.code !== 0) status = `FAILED (exit ${result.code})`;
+  else if (!answer) status = 'FAILED (empty answer)';
+  if (status) return { ok: false, text: `${head}\n\n${status}.\n${stderrTail(result.stderr)}` };
+  return { ok: true, text: `${head}\n\n${answer}\n` };
+}
+
+async function main() {
+  const opts = parseArgs(process.argv.slice(2));
+  if (opts.help) {
+    process.stdout.write(USAGE);
+    return 0;
+  }
+  const config = loadConfig();
+  if (!config.provider) fail(`config has no "provider"`);
+
+  let role = null;
+  if (opts.role) {
+    role = config.roles[opts.role];
+    if (!role) fail(`unknown role "${opts.role}" (roles: ${Object.keys(config.roles).join(', ')})`);
+  }
+  for (const [alias, entry] of Object.entries(config.aliases)) {
+    if (entry.thinking != null && !THINKING_LEVELS.includes(entry.thinking)) {
+      fail(`alias "${alias}" has unknown thinking level "${entry.thinking}"`);
+    }
+  }
+
+  const names = opts.models || (role && role.models) || [config.default];
+  if (!names[0]) fail('no models given and config has no "default"');
+  const web = opts.web || Boolean(role && role.web);
+  const timeoutSec = opts.timeout || DEFAULT_TIMEOUT;
+  const prompt = buildPrompt(opts, role);
+
+  if (!opts.dryRun && !onPath('pi')) {
+    fail(`pi is not installed or not on PATH; see ${path.join(REPO, 'docs/pi-setup.md')}`);
+  }
+  const models = resolveModels(names, config, opts, role);
+  // Read-only by construction: only these two constant lists are ever passed.
+  const tools = web ? [...READ_TOOLS, ...WEB_TOOLS] : READ_TOOLS;
+
+  if (opts.dryRun) {
+    for (const m of models) {
+      const argv = ['pi', ...piArgs(m, config.provider, tools, '<prompt-file>')];
+      process.stdout.write(JSON.stringify({ alias: m.alias, model: m.id, argv }) + '\n');
+    }
+    return 0;
+  }
+
+  const promptDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-ask-'));
+  const promptFile = path.join(promptDir, 'prompt.md');
+  fs.writeFileSync(promptFile, prompt);
+  let results;
+  try {
+    results = await Promise.all(models.map((m) => runModel(piArgs(m, config.provider, tools, promptFile), timeoutSec)));
+  } finally {
+    fs.rmSync(promptDir, { recursive: true, force: true });
+  }
+
+  const sections = models.map((m, i) => section(m, results[i], timeoutSec));
+  process.stdout.write(sections.map((s) => s.text).join('\n'));
+
+  if (opts.out) {
+    const prefix = opts.name || opts.role || 'ask';
+    fs.mkdirSync(opts.out, { recursive: true });
+    models.forEach((m, i) => {
+      const safe = m.alias.replace(/[^\w.-]/g, '_');
+      fs.writeFileSync(path.join(opts.out, `${prefix}.${safe}.md`), sections[i].text);
+    });
+  }
+  return sections.some((s) => s.ok) ? 0 : 1;
+}
+
+main().then(
+  (code) => { process.exitCode = code; },
+  (err) => {
+    if (err instanceof UsageError) {
+      process.stderr.write(`pi-ask: ${err.message}\nRun pi-ask --help for usage.\n`);
+      process.exitCode = 2;
+    } else {
+      process.stderr.write(`pi-ask: ${err.stack || err}\n`);
+      process.exitCode = 1;
+    }
+  },
+);

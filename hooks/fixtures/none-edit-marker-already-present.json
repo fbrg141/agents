@@ -1,0 +1,1 @@
+{"hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"src/a.test.ts","old_string":"it.skip('adds', () => {\n  expect(1).toBe(1);","new_string":"it.skip('adds', () => {\n  expect(2).toBe(2);"}}

@@ -1,0 +1,1 @@
+{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"src/does-not-exist.test.ts","content":"describe('x', () => {\n  it.skip('y', () => {});\n});\n"}}

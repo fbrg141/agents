@@ -1,0 +1,1 @@
+{"hook_event_name":"PreToolUse","tool_name":"MultiEdit","tool_input":{"file_path":"src/b.spec.js","edits":[{"old_string":"const a = 1;","new_string":"const a = 2;"},{"old_string":"it('works', () => {","new_string":"xit('works', () => {"}]}}
