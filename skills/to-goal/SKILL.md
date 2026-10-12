@@ -51,5 +51,5 @@ argument-hint: "[task folder]"
 2. STOP and wait for approval. Apply requested changes and ask again.
 3. On approval, set the status to `APPROVED (<date>)` and print the exact line:
    ```
-   /goal Implement the spec at <spec path> in <repo path>. Done when every command in its "## Acceptance commands" block exits 0 from the repo root. Follow its Constraints and Stop conditions.
+   /goal Implement the spec at <spec path> in <repo path>. Done when every command in its "## Acceptance commands" block exits 0 from the repo root and that passing output is shown in the conversation. Follow its Constraints and Stop conditions. Do not edit the spec; do not weaken, skip, or remove any acceptance command or any check the spec defines. Or stop after 30 turns, or when a Stop condition triggers, and report what is unmet.
    ```
