@@ -12,7 +12,7 @@ read-only second opinions.
 | 1 | `/grill` | Claude interviews you until every decision for the task is settled, looking up facts itself. Writes `grill.md` into a new task folder. |
 | 2 | `/to-goal` | Claude writes `spec.md` with machine-checkable acceptance commands. Three pi models critique it in parallel; Claude synthesizes, revises, and stops for your approval. This is the only human gate. |
 | 3 | `/goal ...` | Built into Claude Code. `/to-goal` prints the exact line: Claude works until the spec's acceptance commands pass. |
-| 4 | `/go` | Re-runs the acceptance commands, runs `/simplify`, has three pi models review the diff against the spec, fixes small findings, and writes `report.md`. You commit. |
+| 4 | `/go` | Re-runs the acceptance commands, runs `/simplify`, has three pi models review the diff against the spec (stops if the diff is empty), fixes small findings, has one pi model review the fixes, and writes `report.md`. You commit. |
 
 Small tasks skip steps 1-2. Task folders live outside your project repos, in
 `~/.claude/specs/<project>/<date>-<slug>/` (`grill.md`, `spec.md`,
