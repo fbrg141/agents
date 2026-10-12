@@ -1,0 +1,1 @@
+{"hook_event_name":"PreToolUse","cwd":"@REPO@","tool_name":"Edit","tool_input":{"file_path":"src/inspected.txt","old_string":"ok","new_string":"fine"}}
