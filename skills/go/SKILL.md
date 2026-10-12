@@ -54,7 +54,8 @@ argument-hint: "[task folder]"
 6. If any fix was applied: repeat the step 5 snapshot into `post-fix.tree`,
    then from the git root run
    `git diff "$(cat <task folder>/pre-fix.tree)" "$(cat <task folder>/post-fix.tree)" > <task folder>/fixes.patch`.
-   From the task folder, run one reviewer once:
+   From the task folder, run one reviewer once (add
+   `--prompt-file <git root>/REVIEW.md` if it exists):
    ```bash
    "$REPO/scripts/pi-ask" --role review --models glm --out reviews --name fixes \
      --prompt-file spec.md --prompt-file fixes.patch
