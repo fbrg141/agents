@@ -8,6 +8,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 CLAUDE_DIR="$HOME/.claude"
 SETTINGS="$CLAUDE_DIR/settings.json"
 HOOK_CMD="$REPO/hooks/no-skip-tests"
+HOOK_MATCHER="Edit|Write|MultiEdit|NotebookEdit"
 
 command -v jq >/dev/null || { echo "install.sh: jq is required" >&2; exit 1; }
 
@@ -59,7 +60,8 @@ shopt -s nullglob
 prune "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_DIR"/skills/*
 shopt -u nullglob
 
-# Hook entry, matched by exact command path so re-runs are no-ops. Entries for
+# Hook entry, matched by exact command path so re-runs are no-ops; an existing
+# entry gets the current matcher. Entries for
 # a no-skip-tests hook whose file no longer exists (a moved clone) are pruned.
 if [[ -e "$SETTINGS" ]]; then
   jq empty "$SETTINGS" 2>/dev/null || { echo "install.sh: $SETTINGS is not valid JSON; not touching it" >&2; exit 1; }
@@ -76,12 +78,13 @@ for cmd in ${stale[@]+"${stale[@]}"}; do echo "prune hook $cmd (file gone)"; don
 stale_json="$(printf '%s\n' ${stale[@]+"${stale[@]}"} | jq -R 'select(length > 0)' | jq -s .)"
 tmp="$(mktemp "$SETTINGS.XXXXXX")"
 trap 'rm -f "$tmp"' EXIT
-jq --arg cmd "$HOOK_CMD" --argjson stale "$stale_json" '
+jq --arg cmd "$HOOK_CMD" --arg matcher "$HOOK_MATCHER" --argjson stale "$stale_json" '
   .hooks.PreToolUse = [(.hooks.PreToolUse // [])[]
                          | .hooks = ((.hooks // []) | map(select(.command as $c | $stale | index($c) | not)))
                          | select(.hooks | length > 0)]
-  | if any(.hooks.PreToolUse[].hooks[]; .command == $cmd) then .
-    else .hooks.PreToolUse += [{ matcher: "Edit|Write|MultiEdit", hooks: [{ type: "command", command: $cmd }] }]
+  | if any(.hooks.PreToolUse[].hooks[]; .command == $cmd)
+    then .hooks.PreToolUse |= map(if any(.hooks[]; .command == $cmd) then .matcher = $matcher else . end)
+    else .hooks.PreToolUse += [{ matcher: $matcher, hooks: [{ type: "command", command: $cmd }] }]
     end
 ' "$SETTINGS" > "$tmp"
 if [[ ! -s "$tmp" ]] || ! jq -e 'type == "object"' "$tmp" >/dev/null 2>&1; then

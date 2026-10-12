@@ -57,10 +57,12 @@ Because the files are links, `git pull` updates your setup; re-run
 `install.sh` when skills are added or removed.
 
 ## The hook
-`hooks/no-skip-tests` runs before `Edit`, `Write`, and `MultiEdit`. When an
-edit to a test file adds a skip marker (`.skip(`, `xit(`,
-`@pytest.mark.skip`, `t.Skip(`, `#[ignore]`, `@Disabled`, ...), Claude Code
-asks you before applying it.
+`hooks/no-skip-tests` runs before `Edit`, `Write`, `MultiEdit`, and
+`NotebookEdit`. When an edit to a test file adds a skip marker (`.skip(`,
+`xit(`, `@pytest.mark.skip`, `t.Skip(`, `#[ignore]`, `@Disabled`, ...), Claude
+Code asks you before applying it. It also asks before an edit to the active
+approved `spec.md` or to a git-tracked file named in its acceptance commands
+(untracked files stay editable, since the spec may ask for them).
 
 ## Review standards per project
 Copy [templates/REVIEW.md](templates/REVIEW.md) to the root of a project as

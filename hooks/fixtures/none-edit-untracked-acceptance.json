@@ -1,0 +1,1 @@
+{"hook_event_name":"PreToolUse","cwd":"@REPO@","tool_name":"Write","tool_input":{"file_path":"@REPO@/scripts/new-check.sh","content":"#!/usr/bin/env bash\nexit 0\n"}}

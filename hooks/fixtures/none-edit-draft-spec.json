@@ -1,0 +1,1 @@
+{"hook_event_name":"PreToolUse","cwd":"@DRAFT@","tool_name":"Edit","tool_input":{"file_path":"@HOME@/.claude/specs/draft/2026-01-03-y/spec.md","old_string":"bash scripts/accept.sh","new_string":"true"}}

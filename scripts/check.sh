@@ -60,20 +60,50 @@ check_c() {
 }
 
 check_d() {
-  node - <<'EOF' || FAILED=1
+  TMP="$TMP" node - <<'EOF' || FAILED=1
 const fs = require('fs');
+const path = require('path');
 const { spawnSync } = require('child_process');
 const dir = 'hooks/fixtures';
+const hook = path.resolve('hooks/no-skip-tests');
 const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort();
 const need = ['ask-edit-it-skip', 'ask-edit-pytest-skip', 'ask-multiedit-xit', 'ask-write-new-skip',
-  'none-edit-non-test', 'none-edit-no-marker', 'none-edit-marker-already-present'];
+  'none-edit-non-test', 'none-edit-no-marker', 'none-edit-marker-already-present',
+  'ask-edit-approved-spec', 'ask-edit-tracked-acceptance', 'none-edit-untracked-acceptance',
+  'none-edit-draft-spec'];
 let ok = true;
 for (const n of need) if (!files.includes(`${n}.json`)) { console.log(`FAIL 1d missing fixture ${n}.json`); ok = false; }
+
+// Sandbox: HOME with specs, repo "proj" (approved spec), repo "draft" (draft spec).
+const sb = fs.mkdtempSync(path.join(process.env.TMP, 'hook.'));
+const home = path.join(sb, 'home');
+const write = (p, s) => { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, s); };
+const git = (cwd, ...args) => {
+  const r = spawnSync('git', ['-c', 'user.name=check', '-c', 'user.email=check@example.invalid', ...args],
+    { cwd, encoding: 'utf8', env: { ...process.env, HOME: home } });
+  if (r.status !== 0) { console.log(`FAIL 1d sandbox git ${args.join(' ')}: ${r.stderr}`); process.exit(1); }
+};
+const spec = (status) => `# Spec: x\n\nStatus: ${status}\n\n## Acceptance commands\n` +
+  'Run from the repo root.\n```bash\nbash scripts/accept.sh && node scripts/new-check.sh\n```\n\n## Stop conditions\n- x\n';
+const repos = { REPO: path.join(sb, 'proj'), DRAFT: path.join(sb, 'draft') };
+for (const r of Object.values(repos)) {
+  write(path.join(r, 'scripts/accept.sh'), 'exit 1\n');
+  write(path.join(r, 'src/.keep'), '');
+  git(r, 'init', '-q');
+  git(r, 'add', '.');
+  git(r, 'commit', '-q', '-m', 'init');
+  write(path.join(r, 'scripts/new-check.sh'), 'exit 1\n');
+}
+write(path.join(home, '.claude/specs/proj/2026-01-02-x/spec.md'), spec('APPROVED (2026-01-02)'));
+write(path.join(home, '.claude/specs/draft/2026-01-03-y/spec.md'), spec('DRAFT (not approved)'));
+const subst = { ...repos, HOME: home };
+const fill = (s) => s.replace(/@(REPO|DRAFT|HOME)@/g, (_, k) => JSON.stringify(subst[k]).slice(1, -1));
+
 let total = 0;
 for (const f of files) {
-  const input = fs.readFileSync(`${dir}/${f}`);
+  const input = fill(fs.readFileSync(`${dir}/${f}`, 'utf8'));
   const t0 = process.hrtime.bigint();
-  const res = spawnSync('hooks/no-skip-tests', { input, encoding: 'utf8' });
+  const res = spawnSync(hook, { input, encoding: 'utf8', cwd: repos.REPO, env: { ...process.env, HOME: home } });
   total += Number(process.hrtime.bigint() - t0) / 1e6;
   const out = res.stdout.trim();
   if (res.status !== 0) { console.log(`FAIL 1d ${f}: exit ${res.status}`); ok = false; continue; }
@@ -82,6 +112,9 @@ for (const f of files) {
     try { d = JSON.parse(out).hookSpecificOutput; } catch { d = null; }
     if (!d || d.permissionDecision !== 'ask' || d.hookEventName !== 'PreToolUse') {
       console.log(`FAIL 1d ${f}: expected ask, got ${JSON.stringify(out)}`); ok = false;
+    } else if (f.includes('spec') !== /rule: approved spec/.test(d.permissionDecisionReason)
+      || f.includes('acceptance') !== /rule: acceptance file/.test(d.permissionDecisionReason)) {
+      console.log(`FAIL 1d ${f}: wrong rule in reason ${JSON.stringify(d.permissionDecisionReason)}`); ok = false;
     }
   } else if (out !== '') {
     console.log(`FAIL 1d ${f}: expected no output, got ${JSON.stringify(out)}`); ok = false;
@@ -95,7 +128,7 @@ EOF
 }
 
 check_e() {
-  local sandbox ok=1 name count hook
+  local sandbox ok=1 name count hook matcher
   sandbox="$(mktemp -d "$TMP/home.XXXXXX")"
   hook="$(pwd -P)/hooks/no-skip-tests"
   if ! HOME="$sandbox" scripts/install.sh >"$TMP/install1" 2>&1; then
@@ -111,6 +144,9 @@ check_e() {
   count="$(jq --arg cmd "$hook" '[.hooks.PreToolUse[]?.hooks[]? | select(.command == $cmd)] | length' \
     "$sandbox/.claude/settings.json" 2>/dev/null)"
   [[ "$count" == "1" ]] || { fail "1e hook entry" "found ${count:-none}, expected 1"; ok=0; }
+  matcher="$(jq -r --arg cmd "$hook" '.hooks.PreToolUse[] | select(any(.hooks[]; .command == $cmd)) | .matcher' \
+    "$sandbox/.claude/settings.json" 2>/dev/null)"
+  [[ "$matcher" == "Edit|Write|MultiEdit|NotebookEdit" ]] || { fail "1e hook matcher" "got '$matcher'"; ok=0; }
   cp "$sandbox/.claude/settings.json" "$TMP/settings.first"
   if ! HOME="$sandbox" scripts/install.sh >"$TMP/install2" 2>&1; then
     fail "1e second install" "$(cat "$TMP/install2")"; return

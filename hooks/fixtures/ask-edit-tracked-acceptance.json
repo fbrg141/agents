@@ -1,0 +1,1 @@
+{"hook_event_name":"PreToolUse","cwd":"@REPO@/src","tool_name":"Edit","tool_input":{"file_path":"../scripts/accept.sh","old_string":"exit 1","new_string":"exit 0"}}
