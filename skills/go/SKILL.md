@@ -1,6 +1,6 @@
 ---
 name: go
-description: Finish a /goal run - re-run the spec's acceptance commands, simplify, have three pi models review the diff against the spec, fix small findings, and write report.md. Never commits.
+description: Finish a /goal run - re-run the spec's acceptance commands, simplify, have two pi models review the diff against the spec, fix small findings, and write report.md. Never commits.
 disable-model-invocation: true
 effort: high
 argument-hint: "[task folder]"

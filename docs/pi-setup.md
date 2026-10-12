@@ -35,7 +35,7 @@ To change them without editing the repo, create
 (`provider`, `default`) replace the built-in ones; each entry under
 `aliases` and `roles` is merged field by field over the built-in entry of
 the same name. Example: make kimi the default, add a `gemma` alias, and use
-it instead of mistral in reviews:
+add it to reviews:
 ```json
 {
   "default": "kimi",

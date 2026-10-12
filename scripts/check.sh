@@ -199,6 +199,7 @@ check_i() {
   "$PI_ASK" --dry-run --role oracle "x" > "$TMP/i.oracle" 2>&1 || { fail "1i oracle dry-run" "$(cat "$TMP/i.oracle")"; return; }
   "$PI_ASK" --dry-run --web "x" > "$TMP/i.web" 2>&1 || { fail "1i web dry-run" "$(cat "$TMP/i.web")"; return; }
   "$PI_ASK" --dry-run --role research "x" > "$TMP/i.research" 2>&1 || { fail "1i research dry-run" "$(cat "$TMP/i.research")"; return; }
+  "$PI_ASK" --dry-run --models mistral "x" > "$TMP/i.mistral" 2>&1 || { fail "1i mistral dry-run" "$(cat "$TMP/i.mistral")"; return; }
   TMP="$TMP" node - <<'EOF' || FAILED=1
 const fs = require('fs');
 const read = (n) => fs.readFileSync(`${process.env.TMP}/i.${n}`, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -209,8 +210,8 @@ const def = read('default');
 if (def.length !== 1 || def[0].alias !== 'glm' || !def[0].argv.includes('ollama-cloud/glm-5.3')) errs.push('default call is not glm');
 const oracle = read('oracle');
 const by = Object.fromEntries(oracle.map((l) => [l.alias, l.argv]));
-if (oracle.map((l) => l.alias).join(',') !== 'kimi,glm,mistral') errs.push('oracle models are not kimi,glm,mistral');
-if (by.mistral && thinking(by.mistral) !== null) errs.push('mistral has --thinking');
+if (oracle.map((l) => l.alias).join(',') !== 'kimi,glm') errs.push('oracle models are not kimi,glm');
+if (thinking(read('mistral')[0].argv) !== null) errs.push('mistral has --thinking');
 if (by.kimi && thinking(by.kimi) !== 'xhigh') errs.push('kimi thinking is not xhigh');
 const web = read('web');
 for (const t of ['ollama_web_search', 'ollama_web_fetch']) if (!tools(web[0].argv).includes(t)) errs.push(`--web lacks ${t}`);

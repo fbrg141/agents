@@ -10,13 +10,13 @@
   },
   "roles": {
     "oracle": {
-      "models": ["kimi", "glm", "mistral"],
+      "models": ["kimi", "glm"],
       "template": "templates/prompts/oracle.md",
       "thinking": { "kimi": "xhigh" },
       "web": false
     },
     "review": {
-      "models": ["kimi", "glm", "mistral"],
+      "models": ["kimi", "glm"],
       "template": "templates/prompts/review.md",
       "thinking": { "kimi": "xhigh" },
       "web": false

@@ -1,6 +1,6 @@
 ---
 name: to-goal
-description: Turn a settled task (grill.md plus conversation) into spec.md with machine-checkable acceptance commands, get a three-model pi critique, revise, and hand back a /goal line for approval.
+description: Turn a settled task (grill.md plus conversation) into spec.md with machine-checkable acceptance commands, get a two-model pi critique, revise, and hand back a /goal line for approval.
 disable-model-invocation: true
 argument-hint: "[task folder]"
 ---
