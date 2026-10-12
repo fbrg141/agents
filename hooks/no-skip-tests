@@ -1,0 +1,64 @@
+#!/usr/bin/env node
+// PreToolUse hook (Edit|Write|MultiEdit): ask before an edit adds a
+// test-skip marker to a test file.
+'use strict';
+
+const fs = require('node:fs');
+const path = require('node:path');
+
+const MARKERS = [
+  '.skip(', 'xit(', 'xdescribe(', 'xtest(',
+  '@pytest.mark.skip', '@pytest.mark.xfail', '@unittest.skip',
+  't.Skip(', '#[ignore]', '@Disabled', 'Skip =', '[Ignore]',
+];
+
+function isTestFile(file) {
+  const base = path.basename(file);
+  if (/\.(test|spec)\./.test(base) || /_test\./.test(base) || /^test_.*\.py$/.test(base)) return true;
+  return file.split(/[\\/]/).slice(0, -1).some((dir) => ['test', 'tests', '__tests__'].includes(dir));
+}
+
+function pairs(tool, input) {
+  if (tool === 'Edit') return [[input.old_string || '', input.new_string || '']];
+  if (tool === 'MultiEdit') {
+    return (input.edits || []).map((e) => [e.old_string || '', e.new_string || '']);
+  }
+  if (tool === 'Write') {
+    const content = input.content || '';
+    // Read the current file only when the new content could trigger.
+    if (!MARKERS.some((m) => content.includes(m))) return [];
+    let old = '';
+    try { old = fs.readFileSync(input.file_path, 'utf8'); } catch {}
+    return [[old, content]];
+  }
+  return [];
+}
+
+function main() {
+  let event;
+  try {
+    event = JSON.parse(fs.readFileSync(0, 'utf8'));
+  } catch {
+    return;
+  }
+  const tool = event.tool_name;
+  const input = event.tool_input || {};
+  if (!input.file_path || !isTestFile(input.file_path)) return;
+
+  for (const [oldText, newText] of pairs(tool, input)) {
+    const marker = MARKERS.find((m) => newText.includes(m) && !oldText.includes(m));
+    if (marker) {
+      process.stdout.write(JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'ask',
+          permissionDecisionReason:
+            `This ${tool} adds the test-skip marker "${marker}" to ${input.file_path}. Confirm that skipping or disabling this test is intended.`,
+        },
+      }) + '\n');
+      return;
+    }
+  }
+}
+
+main();

@@ -1,0 +1,29 @@
+{
+  "provider": "ollama-cloud",
+  "default": "glm",
+  "aliases": {
+    "kimi": { "model": "kimi-k3", "thinking": "high" },
+    "glm": { "model": "glm-5.3", "thinking": "high" },
+    "mistral": { "model": "mistral-large-3:675b", "thinking": null },
+    "deepseek": { "model": "deepseek-v4.1-flash", "thinking": "high" },
+    "flash": { "model": "glm-5.3-flash", "thinking": "low" }
+  },
+  "roles": {
+    "oracle": {
+      "models": ["kimi", "glm", "mistral"],
+      "template": "templates/prompts/oracle.md",
+      "thinking": { "kimi": "xhigh" },
+      "web": false
+    },
+    "review": {
+      "models": ["kimi", "glm", "mistral"],
+      "template": "templates/prompts/review.md",
+      "thinking": { "kimi": "xhigh" },
+      "web": false
+    },
+    "research": {
+      "models": ["deepseek"],
+      "web": true
+    }
+  }
+}
