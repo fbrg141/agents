@@ -31,6 +31,9 @@ check_a() {
     desc="$(fm description "$file")"
     [[ "$name" == "$dir" ]] || { fail "1a $file" "name '$name' != folder '$dir'"; ok=0; }
     [[ -n "$desc" ]] || { fail "1a $file" "empty description"; ok=0; }
+    if [[ "$desc" != [\"\']* && ( "$desc" == *": "* || "$desc" == *" #"* ) ]]; then
+      fail "1a $file" "unquoted description contains ': ' or ' #' (invalid YAML)"; ok=0
+    fi
     (( ${#desc} <= 1536 )) || { fail "1a $file" "description has ${#desc} chars"; ok=0; }
   done
   (( ok )) && pass "1a skill frontmatter"
@@ -70,7 +73,7 @@ const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort();
 const need = ['ask-edit-it-skip', 'ask-edit-pytest-skip', 'ask-multiedit-xit', 'ask-write-new-skip',
   'none-edit-non-test', 'none-edit-no-marker', 'none-edit-marker-already-present',
   'ask-edit-approved-spec', 'ask-edit-tracked-acceptance', 'none-edit-untracked-acceptance',
-  'none-edit-draft-spec'];
+  'none-edit-draft-spec', 'none-edit-inspected-file', 'none-edit-finished-task'];
 let ok = true;
 for (const n of need) if (!files.includes(`${n}.json`)) { console.log(`FAIL 1d missing fixture ${n}.json`); ok = false; }
 
@@ -84,11 +87,12 @@ const git = (cwd, ...args) => {
   if (r.status !== 0) { console.log(`FAIL 1d sandbox git ${args.join(' ')}: ${r.stderr}`); process.exit(1); }
 };
 const spec = (status) => `# Spec: x\n\nStatus: ${status}\n\n## Acceptance commands\n` +
-  'Run from the repo root.\n```bash\nbash scripts/accept.sh && node scripts/new-check.sh\n```\n\n## Stop conditions\n- x\n';
-const repos = { REPO: path.join(sb, 'proj'), DRAFT: path.join(sb, 'draft') };
+  'Run from the repo root.\n```bash\nbash scripts/accept.sh && node scripts/new-check.sh\n' +
+  'grep -q ok src/inspected.txt\n```\n\n## Stop conditions\n- x\n';
+const repos = { REPO: path.join(sb, 'proj'), DRAFT: path.join(sb, 'draft'), DONE: path.join(sb, 'done') };
 for (const r of Object.values(repos)) {
   write(path.join(r, 'scripts/accept.sh'), 'exit 1\n');
-  write(path.join(r, 'src/.keep'), '');
+  write(path.join(r, 'src/inspected.txt'), 'ok\n');
   git(r, 'init', '-q');
   git(r, 'add', '.');
   git(r, 'commit', '-q', '-m', 'init');
@@ -96,8 +100,10 @@ for (const r of Object.values(repos)) {
 }
 write(path.join(home, '.claude/specs/proj/2026-01-02-x/spec.md'), spec('APPROVED (2026-01-02)'));
 write(path.join(home, '.claude/specs/draft/2026-01-03-y/spec.md'), spec('DRAFT (not approved)'));
+write(path.join(home, '.claude/specs/done/2026-01-04-z/spec.md'), spec('APPROVED (2026-01-04)'));
+write(path.join(home, '.claude/specs/done/2026-01-04-z/report.md'), '# Report\n');
 const subst = { ...repos, HOME: home };
-const fill = (s) => s.replace(/@(REPO|DRAFT|HOME)@/g, (_, k) => JSON.stringify(subst[k]).slice(1, -1));
+const fill = (s) => s.replace(/@(REPO|DRAFT|DONE|HOME)@/g, (_, k) => JSON.stringify(subst[k]).slice(1, -1));
 
 let total = 0;
 for (const f of files) {
