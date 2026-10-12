@@ -12,7 +12,7 @@ argument-hint: "[models][+web]: question"
 - models: comma-separated aliases (`kimi`, `glm`, `mistral`, `deepseek`,
   `flash`) or full model ids. None given: omit `--models` (default model).
 - `+web`: add `--web`.
-- "second opinion" without models: use `--models kimi,glm,mistral`.
+- "second opinion" without models: use `--models kimi,glm`.
 
 ## Build the prompt
 The models see nothing of this conversation. Write a self-contained prompt:
